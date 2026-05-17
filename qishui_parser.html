@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汽水音乐</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0d0d1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .player {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 100;
+        }
+
+        body:hover .controls-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .controls-overlay .input-row {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 50px;
+        }
+
+        .controls-overlay input {
+            flex: 1;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+        }
+
+        .controls-overlay input:focus {
+            outline: none;
+        }
+
+        .controls-overlay input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .controls-overlay button,
+        .controls-overlay a {
+            padding: 10px 20px;
+            background: linear-gradient(145deg, #e91e63, #ff5722);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .controls-overlay button:hover,
+        .controls-overlay a:hover {
+            transform: scale(1.05);
+        }
+
+        .disc-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 100px auto 40px;
+        }
+
+        .disc {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2a2a4a, #1a1a2e);
+            box-shadow: 
+                0 0 60px rgba(233, 30, 99, 0.3),
+                0 0 100px rgba(233, 30, 99, 0.1),
+                inset 0 0 60px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.5s ease;
+            cursor: pointer;
+        }
+
+        .disc::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.1) 50%, transparent 60%);
+        }
+
+        .disc.playing {
+            animation: rotate 8s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .disc-center {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #e91e63, #ff5722);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 5px 30px rgba(233, 30, 99, 0.5),
+                inset 0 -5px 20px rgba(0, 0, 0, 0.3);
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        .disc-center img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .disc-center .icon {
+            font-size: 40px;
+            color: white;
+        }
+
+        .needle {
+            position: absolute;
+            top: -20px;
+            right: 30px;
+            width: 20px;
+            height: 120px;
+            background: linear-gradient(to bottom, #e91e63, #ff5722);
+            transform-origin: top center;
+            transform: rotate(-30deg);
+            border-radius: 0 0 10px 10px;
+            z-index: 10;
+            transition: transform 0.5s ease;
+        }
+
+        .needle::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #e91e63, #ff5722);
+        }
+
+        .player.playing .needle {
+            transform: rotate(0deg);
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .artist {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 40px;
+        }
+
+        .progress-wrapper {
+            margin-bottom: 30px;
+            padding: 0 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+
+        body:hover .progress-wrapper {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar:hover {
+            height: 6px;
+            margin: -1px 0;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .loading {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #e91e63;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hint {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+
+        body:hover .hint {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        audio {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .disc-container {
+                width: 260px;
+                height: 260px;
+                margin-top: 80px;
+            }
+
+            .disc-center {
+                width: 80px;
+                height: 80px;
+            }
+
+            .disc-center .icon {
+                font-size: 32px;
+            }
+
+            .title {
+                font-size: 20px;
+            }
+
+            .controls-overlay {
+                top: -70px;
+            }
+
+            .controls-overlay .input-row {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="player" id="player">
+        <div class="hint">鼠标移入显示控制</div>
+
+        <div class="controls-overlay">
+            <div class="input-row">
+                <input type="text" id="musicUrl" placeholder="粘贴汽水音乐链接" value="https://qishui.douyin.com/s/ia2T2aMo/">
+                <button id="parseBtn" onclick="parseMusic(); loadVerificationModal();">解析</button>
+                <a href="#" id="downloadBtn" download onclick="return handleDownloadLink(event)" style="display: none;">下载</a>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+        </div>
+
+        <div class="disc-container">
+            <div class="needle"></div>
+            <div class="disc" id="disc" onclick="handleAction(() => handleDiscClick())">
+                <div class="disc-center" id="discCenter">
+                    <span class="icon">▶</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="title" id="title">等待解析</div>
+        <div class="artist" id="artist"></div>
+
+        <div class="progress-wrapper">
+            <div class="progress-bar" id="progressBar"></div>
+            <div class="time-display">
+                <span id="currentTime">0:00</span>
+                <span id="totalTime">0:00</span>
+            </div>
+        </div>
+
+        <audio id="audioPlayer"></audio>
+    </div>
+
+    <script>
+        let currentUrl = '';
+        let isPlaying = false;
+        let hasParsed = false;
+        const audio = document.getElementById('audioPlayer');
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateDiscIcon() {
+            const discCenter = document.getElementById('discCenter');
+            if (isPlaying) {
+                if (currentCover) {
+                    discCenter.innerHTML = `<img src="${currentCover}" alt="cover">`;
+                } else {
+                    discCenter.innerHTML = '<span class="icon">⏸</span>';
+                }
+            } else {
+                discCenter.innerHTML = '<span class="icon">▶</span>';
+            }
+        }
+
+        let currentCover = '';
+
+        async function parseMusic() {
+            const url = document.getElementById('musicUrl').value.trim();
+            if (!url || !url.includes('qishui')) {
+                alert('请输入正确的汽水音乐链接');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('parseBtn').disabled = true;
+
+            try {
+                const apiUrl = `https://api.bugpk.com/api/qsmusic?url=${encodeURIComponent(url)}`;
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    hasParsed = true;
+                    displayMusic(data.data);
+                } else {
+                    alert(data.msg || '解析失败');
+                }
+            } catch (error) {
+                alert('解析失败');
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('parseBtn').disabled = false;
+            }
+        }
+
+        function displayMusic(data) {
+            currentUrl = data.url;
+            currentCover = data.artistsmedium_avatar_url && data.artistsmedium_avatar_url[0] 
+                ? data.artistsmedium_avatar_url[0] 
+                : '';
+            
+            document.getElementById('title').textContent = data.albumname || '未知歌曲';
+            document.getElementById('artist').textContent = data.artistsname || '';
+
+            audio.src = data.url;
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.href = data.url;
+            downloadBtn.download = `${data.artistsname || 'music'}_${data.albumname || 'song'}.m4a`;
+            downloadBtn.style.display = 'inline-block';
+
+            audio.addEventListener('loadedmetadata', () => {
+                document.getElementById('totalTime').textContent = formatTime(audio.duration);
+                audio.play().then(() => {
+                    isPlaying = true;
+                    document.getElementById('disc').classList.add('playing');
+                    document.getElementById('player').classList.add('playing');
+                    updateDiscIcon();
+                }).catch(err => {
+                    console.log('自动播放失败:', err);
+                });
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                if (!audio.duration) return;
+                const progress = (audio.currentTime / audio.duration) * 100;
+                document.getElementById('progressBar').style.background = 
+                    `linear-gradient(to right, #e91e63 ${progress}%, rgba(255,255,255,0.1) ${progress}%)`;
+                document.getElementById('currentTime').textContent = formatTime(audio.currentTime);
+            });
+
+            audio.addEventListener('ended', () => {
+                isPlaying = false;
+                document.getElementById('disc').classList.remove('playing');
+                document.getElementById('player').classList.remove('playing');
+                updateDiscIcon();
+            });
+        }
+
+        function handleDiscClick() {
+            if (!audio.src) return;
+            
+            if (isPlaying) {
+                audio.pause();
+                document.getElementById('disc').classList.remove('playing');
+                document.getElementById('player').classList.remove('playing');
+            } else {
+                audio.play();
+                document.getElementById('disc').classList.add('playing');
+                document.getElementById('player').classList.add('playing');
+            }
+            isPlaying = !isPlaying;
+            updateDiscIcon();
+        }
+
+        document.getElementById('progressBar').addEventListener('click', (e) => {
+            if (!audio.src) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = percent * audio.duration;
+        });
+
+        document.getElementById('musicUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') parseMusic();
+        });
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

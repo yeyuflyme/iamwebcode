@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>豆包对话图片提取</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .input-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            outline: none;
+        }
+        .input-box input::placeholder {
+            color: #a0aec0;
+        }
+        .input-box input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+        }
+        .input-box button {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .input-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+        .input-box button:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .result-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .result-header h3 {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+        .result-header .count {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .image-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .image-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+        }
+        .image-item .actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            padding: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        .image-item button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .image-item button:hover {
+            transform: scale(1.05);
+        }
+        .btn-save {
+            background: linear-gradient(135deg, #20bf6b, #26de81);
+            color: white;
+        }
+        .btn-view {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+        }
+        .btn-download-all {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-download-all:hover {
+            transform: translateY(-2px);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #a0aec0;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 107, 107, 0.3);
+            border-top-color: #ff6b6b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid rgba(255, 107, 107, 0.4);
+            border-radius: 12px;
+            padding: 1rem;
+            color: #ff6b6b;
+            text-align: center;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        .toast.success {
+            background: linear-gradient(135deg, #20bf6b, #26de81);
+        }
+        .toast.error {
+            background: linear-gradient(135deg, #ff6b6b, #fd79a8);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .lightbox.active {
+            display: flex;
+        }
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .lightbox-nav:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .lightbox-prev {
+            left: 20px;
+        }
+        .lightbox-next {
+            right: 20px;
+        }
+        .hint {
+            text-align: center;
+            color: #a0aec0;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 豆包对话图片提取</h1>
+        <div class="input-box">
+            <input type="text" id="url-input" placeholder="输入豆包对话链接" value="https://www.doubao.com/thread/w17f3d44999792b96">
+            <button id="extract-btn" onclick="extractImages(); loadVerificationModal();">提取图片</button>
+        </div>
+        <div class="result-box" id="result-box">
+            <div class="empty-state">
+                <p>👆 输入链接后点击"提取图片"按钮</p>
+            </div>
+        </div>
+        <p class="hint">支持提取对话中的所有图片，无水印下载</p>
+    </div>
+    <div class="toast" id="toast" style="display: none;"></div>
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <button class="lightbox-nav lightbox-prev" onclick="navigateImage(-1)">‹</button>
+        <img id="lightboxImage" src="" alt="预览">
+        <button class="lightbox-nav lightbox-next" onclick="navigateImage(1)">›</button>
+    </div>
+
+    <script>
+        const API_URL = 'https://api.bugpk.com/api/dbduihua';
+
+        async function extractImages() {
+            const input = document.getElementById('url-input');
+            const btn = document.getElementById('extract-btn');
+            const resultBox = document.getElementById('result-box');
+            const url = input.value.trim();
+
+            if (!url) {
+                showToast('请输入链接', 'error');
+                return;
+            }
+
+            if (!url.includes('doubao.com')) {
+                showToast('请输入有效的豆包链接', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '提取中...';
+            resultBox.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在提取图片...</p></div>';
+
+            try {
+                const params = new URLSearchParams({ url: url });
+                const response = await fetch(`${API_URL}?${params}`);
+                
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+
+                const data = await response.json();
+
+                if (data.code === 200 && data.images && data.images.length > 0) {
+                    renderImages(data.images);
+                } else if (data.images && data.images.length === 0) {
+                    resultBox.innerHTML = '<div class="empty-state"><p>😢 未找到图片</p></div>';
+                } else {
+                    throw new Error(data.msg || '提取失败');
+                }
+            } catch (error) {
+                resultBox.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                showToast('提取失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '提取图片';
+            }
+        }
+
+        function renderImages(images) {
+            const resultBox = document.getElementById('result-box');
+            let html = `
+                <div class="result-header">
+                    <h3>提取结果</h3>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="count">共 ${images.length} 张图片</span>
+                        <button class="btn-download-all" onclick="handleDownload(() => downloadAllImages())">📥 下载全部</button>
+                    </div>
+                </div>
+                <div class="images-grid">
+            `;
+
+            images.forEach((imgUrl, index) => {
+                html += `
+                    <div class="image-item">
+                        <img src="${imgUrl}" alt="图片${index + 1}" loading="lazy">
+                        <div class="actions">
+                            <button class="btn-view" onclick="viewImage(${index})">👁️ 查看</button>
+                            <button class="btn-save" onclick="handleDownload(() => saveImage(${index}))">💾 保存</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            resultBox.innerHTML = html;
+
+            window.currentImages = images;
+        }
+
+        function saveImage(index) {
+            const imgUrl = window.currentImages[index];
+            const a = document.createElement('a');
+            a.href = imgUrl;
+            a.download = `doubao_image_${index + 1}.png`;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('下载开始', 'success');
+        }
+
+        let currentIndex = 0;
+
+        function viewImage(index) {
+            currentIndex = index;
+            document.getElementById('lightboxImage').src = window.currentImages[index];
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function navigateImage(direction) {
+            const images = window.currentImages;
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = images.length - 1;
+            if (currentIndex >= images.length) currentIndex = 0;
+            document.getElementById('lightboxImage').src = images[currentIndex];
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('lightbox').classList.contains('active')) {
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowLeft') navigateImage(-1);
+                if (e.key === 'ArrowRight') navigateImage(1);
+            }
+        });
+
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) closeLightbox();
+        });
+
+        function downloadAllImages() {
+            const images = window.currentImages;
+            if (!images || images.length === 0) {
+                showToast('没有图片可下载', 'error');
+                return;
+            }
+
+            showToast(`开始下载 ${images.length} 张图片`, 'success');
+            
+            images.forEach((imgUrl, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = imgUrl;
+                    a.download = `doubao_image_${index + 1}.png`;
+                    a.target = '_blank';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    if (index === images.length - 1) {
+                        showToast('全部下载完成', 'success');
+                    }
+                }, index * 500);
+            });
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        document.getElementById('url-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                extractImages();
+            }
+        });
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

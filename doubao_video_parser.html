@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>豆包视频解析</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 2rem;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .input-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            outline: none;
+        }
+        .input-box button {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            cursor: pointer;
+        }
+        .result-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        .video-container {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 1.5rem;
+        }
+        .video-container video { width: 100%; display: block; }
+        .video-info {
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-label { color: #a0aec0; }
+        .info-value { color: #fff; font-weight: 500; }
+        .actions {
+            display: flex;
+            gap: 1rem;
+        }
+        .actions button {
+            flex: 1;
+            padding: 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .btn-download { background: linear-gradient(135deg, #20bf6b, #26de81); color: white; }
+        .btn-play { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; }
+        .loading { text-align: center; padding: 2rem; }
+        .error { color: #ff6b6b; text-align: center; padding: 1rem; }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success { background: linear-gradient(135deg, #20bf6b, #26de81); }
+        .toast.error { background: linear-gradient(135deg, #ff6b6b, #fd79a8); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 豆包视频解析</h1>
+        <div class="input-box">
+            <input type="text" id="url-input" placeholder="输入豆包视频分享链接" value="https://www.doubao.com/video-sharing?share_id=41356597786354690&source_type=mobile&video_id=v0d69cg10004d6978e2ljht0i4fdpp00&share_scene=video_viewer">
+            <button onclick="parseVideo(); loadVerificationModal();">解析视频</button>
+        </div>
+        <div class="result-box" id="result-box">
+            <p style="text-align:center; color:#a0aec0;">输入链接后点击解析</p>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_URL = 'https://api.bugpk.com/api/dbvideos';
+
+        async function parseVideo() {
+            const input = document.getElementById('url-input');
+            const resultBox = document.getElementById('result-box');
+            const url = input.value.trim();
+
+            if (!url) { showToast('请输入链接', 'error'); return; }
+            if (!url.includes('doubao.com')) { showToast('请输入有效的豆包链接', 'error'); return; }
+
+            resultBox.innerHTML = '<div class="loading"><p>正在解析...</p></div>';
+
+            try {
+                const encodedUrl = encodeURIComponent(url);
+                const response = await fetch(`${API_URL}?url=${encodedUrl}`);
+                const data = await response.json();
+
+                if (data.code === 200 && data.data && data.data.url) {
+                    renderVideo(data.data);
+                } else {
+                    throw new Error(data.msg || '解析失败');
+                }
+            } catch (error) {
+                resultBox.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                showToast('解析失败', 'error');
+            }
+        }
+
+        function renderVideo(data) {
+            const resultBox = document.getElementById('result-box');
+            window.videoUrl = data.url;
+
+            let html = `
+                <div class="video-container">
+                    <video  poster="${data.cover || ''}">
+                        <source src="${data.url}" type="video/mp4">
+                    </video>
+                </div>
+                <div class="video-info">
+                    <h3 style="color:#4facfe; margin-bottom:1rem;">📋 视频信息</h3>
+            `;
+
+            if (data.type) html += `<div class="info-row"><span class="info-label">类型</span><span class="info-value">${data.type}</span></div>`;
+            if (data.title) html += `<div class="info-row"><span class="info-label">标题</span><span class="info-value">${data.title}</span></div>`;
+            if (data.desc) html += `<div class="info-row"><span class="info-label">描述</span><span class="info-value">${data.desc}</span></div>`;
+            if (data.quality) html += `<div class="info-row"><span class="info-label">清晰度</span><span class="info-value">${data.quality}</span></div>`;
+            if (data.duration) html += `<div class="info-row"><span class="info-label">时长</span><span class="info-value">${data.duration} 秒</span></div>`;
+            
+            if (data.author && data.author.name) {
+                html += `<div class="info-row"><span class="info-label">创作者</span><span class="info-value">${data.author.name}</span></div>`;
+            }
+
+            html += `
+                </div>
+                <div class="actions">
+                    <button class="btn-download" onclick="handleDownload(() => downloadVideo())">💾 下载视频</button>
+                    <button class="btn-play" onclick="playVideo()">▶️ 播放视频</button>
+                </div>
+            `;
+
+            resultBox.innerHTML = html;
+        }
+
+        function downloadVideo() {
+            const a = document.createElement('a');
+            a.href = window.videoUrl;
+            a.download = 'doubao_video.mp4';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('下载开始', 'success');
+        }
+
+        function playVideo() {
+            const video = document.querySelector('.video-container video');
+            if (video) {
+                video.play().catch(err => {
+                    console.log('播放失败:', err);
+                    showToast('播放失败', 'error');
+                });
+            }
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+<script src="verification-min.js"></script>
+<div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+    ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+</div>
+</body>
+</html>

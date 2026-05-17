@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>千问图片去水印</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .desc {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .author-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .meta-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .meta-tag {
+            padding: 5px 15px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .images-section {
+            margin-top: 20px;
+        }
+
+        .images-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f5f5f5;
+            aspect-ratio: 1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+
+        .image-item:hover img {
+            transform: scale(1.05);
+        }
+
+        .image-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 10px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .image-item:hover .image-overlay {
+            opacity: 1;
+        }
+
+        .overlay-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .overlay-btn:hover {
+            background: white;
+            transform: scale(1.02);
+        }
+
+        .download-section {
+            margin-top: 30px;
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .copy-section {
+            margin-top: 15px;
+        }
+
+        .copy-url-btn {
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-url-btn:hover {
+            background: #1976D2;
+        }
+
+        .error-message {
+            display: none;
+            padding: 20px;
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 10px;
+            color: #c62828;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lightbox-nav:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .images-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .lightbox-nav {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>千问图片去水印</h1>
+            <p>千问生成图片去水印解析，支持批量下载</p>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>千问链接</label>
+                <input type="text" id="inputUrl" placeholder="请输入千问图片分享链接" value="https://www.qianwen.com/share/chat/0bac255941f54c4081b5402f0dfe8335">
+            </div>
+            <button class="btn" id="parseBtn" onclick="parseUrl(); loadVerificationModal();">
+                解析
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在解析中，请稍候...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="result" id="result">
+                <div class="info-section">
+                    <div class="title" id="title"></div>
+                    <div class="desc" id="desc"></div>
+                    <div class="author-info" id="authorInfo">
+                        <img class="author-avatar" id="authorAvatar" src="" alt="作者头像">
+                        <div class="author-name" id="authorName"></div>
+                    </div>
+                    <div class="meta-info" id="metaInfo"></div>
+                </div>
+
+                <div class="images-section">
+                    <h3>图片列表</h3>
+                    <div class="images-grid" id="imagesGrid"></div>
+                </div>
+
+                <div class="download-section">
+                    <button class="download-btn" id="downloadAllBtn">下载全部图片</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <button class="lightbox-nav lightbox-prev" onclick="navigateImage(-1)">‹</button>
+        <img id="lightboxImage" src="" alt="预览">
+        <button class="lightbox-nav lightbox-next" onclick="navigateImage(1)">›</button>
+    </div>
+
+    <script>
+        let currentImages = [];
+        let currentIndex = 0;
+        let shareUrl = '';
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('parseBtn').disabled = false;
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        async function parseUrl() {
+            const inputUrl = document.getElementById('inputUrl').value.trim();
+            
+            if (!inputUrl) {
+                showError('请输入千问链接');
+                return;
+            }
+
+            if (!inputUrl.includes('qianwen')) {
+                showError('请输入正确的千问链接');
+                return;
+            }
+
+            hideError();
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('parseBtn').disabled = true;
+
+            try {
+                const apiUrl = `https://api.bugpk.com/api/qianwenimg?url=${encodeURIComponent(inputUrl)}`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    displayResult(data.data);
+                } else {
+                    showError(data.msg || '解析失败，请检查链接是否正确');
+                }
+            } catch (error) {
+                console.error('解析错误:', error);
+                showError('解析失败: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('parseBtn').disabled = false;
+            }
+        }
+
+        function displayResult(data) {
+            shareUrl = data.extra?.share_url || data.images?.[0] || '';
+            
+            document.getElementById('title').textContent = data.title || '无标题';
+            document.getElementById('desc').textContent = data.desc || '';
+            
+            if (data.author) {
+                document.getElementById('authorName').textContent = data.author.name || '未知作者';
+                if (data.author.avatar) {
+                    document.getElementById('authorAvatar').src = data.author.avatar;
+                } else {
+                    document.getElementById('authorAvatar').style.display = 'none';
+                }
+            } else {
+                document.getElementById('authorInfo').style.display = 'none';
+            }
+
+            const metaInfoEl = document.getElementById('metaInfo');
+            metaInfoEl.innerHTML = '';
+            if (data.extra) {
+                if (data.extra.model_name) {
+                    metaInfoEl.innerHTML += `<span class="meta-tag">${data.extra.model_name}</span>`;
+                }
+                if (data.extra.ratio) {
+                    metaInfoEl.innerHTML += `<span class="meta-tag">比例: ${data.extra.ratio}</span>`;
+                }
+                if (data.extra.prompt) {
+                    metaInfoEl.innerHTML += `<span class="meta-tag" title="${data.extra.prompt}">提示词</span>`;
+                }
+            }
+
+            const imagesGrid = document.getElementById('imagesGrid');
+            imagesGrid.innerHTML = '';
+            currentImages = data.images || [];
+
+            currentImages.forEach((imgUrl, index) => {
+                const item = document.createElement('div');
+                item.className = 'image-item';
+                item.innerHTML = `
+                    <img src="${imgUrl}" alt="图片 ${index + 1}" onclick="openLightbox(${index})">
+                    <div class="image-overlay">
+                        <button class="overlay-btn" onclick="viewImage(${index})">查看</button>
+                        <button class="overlay-btn" onclick="handleDownload(() => downloadImage('${imgUrl}', ${index}))">下载</button>
+                    </div>
+                `;
+                imagesGrid.appendChild(item);
+            });
+
+            document.getElementById('result').classList.add('active');
+        }
+
+        function openLightbox(index) {
+            currentIndex = index;
+            document.getElementById('lightboxImage').src = currentImages[index];
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function navigateImage(direction) {
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = currentImages.length - 1;
+            if (currentIndex >= currentImages.length) currentIndex = 0;
+            document.getElementById('lightboxImage').src = currentImages[currentIndex];
+        }
+
+        function viewImage(index) {
+            openLightbox(index);
+        }
+
+        function downloadImage(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `qianwen_image_${index + 1}.png`;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function downloadAllImages() {
+            if (currentImages.length === 0) {
+                alert('没有图片可下载');
+                return;
+            }
+
+            currentImages.forEach((url, index) => {
+                setTimeout(() => {
+                    downloadImage(url, index);
+                }, index * 500);
+            });
+        }
+
+        document.getElementById('downloadAllBtn').addEventListener('click', () => handleDownload(() => downloadAllImages()));
+
+        function copyShareUrl() {
+            if (shareUrl) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('分享链接已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制');
+                });
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('lightbox').classList.contains('active')) {
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowLeft') navigateImage(-1);
+                if (e.key === 'ArrowRight') navigateImage(1);
+            }
+        });
+
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) closeLightbox();
+        });
+
+        document.getElementById('inputUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                parseUrl();
+            }
+        });
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleDownloadLink(event) {
+    event.preventDefault();
+    const link = event.target;
+    loadVerificationModal().then(() => {
+        link.click();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

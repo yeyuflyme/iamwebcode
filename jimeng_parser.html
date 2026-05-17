@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即梦AI去水印解析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .cover {
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .video-info {
+            flex: 1;
+        }
+
+        .video-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .video-desc {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .author-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .author-desc {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .download-section {
+            margin-top: 20px;
+        }
+
+        .download-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .download-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .download-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .download-item:hover {
+            background: #e8e8e8;
+        }
+
+        .quality-badge {
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .download-btn {
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .download-item-btn {
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-item-btn:hover {
+            background: #45a049;
+        }
+
+        .play-btn {
+            background: #2196F3;
+        }
+
+        .play-btn:hover {
+            background: #1976D2;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .extra-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .extra-info h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .extra-info p {
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            display: none;
+            padding: 20px;
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 10px;
+            color: #c62828;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .preview-section {
+            margin-top: 20px;
+        }
+
+        .preview-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .copy-section {
+            margin-top: 20px;
+        }
+
+        .copy-url-btn {
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-url-btn:hover {
+            background: #1976D2;
+        }
+
+        .copy-url-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 768px) {
+            .result-header {
+                flex-direction: column;
+            }
+
+            .cover {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 16/9;
+            }
+
+            .download-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>即梦AI去水印解析</h1>
+            <p>输入即梦AI视频链接，一键解析无水印视频</p>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>视频链接</label>
+                <input type="text" id="videoUrl" placeholder="请输入即梦AI视频链接，如：https://jimeng.jianying.com/s/xxx" value="https://jimeng.jianying.com/s/dIoZU15ENhk/?t=8011">
+            </div>
+            <button class="btn" id="parseBtn" onclick="parseVideo(); loadVerificationModal();">
+                解析视频
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在解析中，请稍候...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="result" id="result">
+                <div class="result-header">
+                    <img class="cover" id="cover" src="" alt="封面">
+                    <div class="video-info">
+                        <div class="video-title" id="title"></div>
+                        <div class="video-desc" id="desc"></div>
+                        <div class="author-info">
+                            <img class="author-avatar" id="authorAvatar" src="" alt="作者头像">
+                            <div>
+                                <div class="author-name" id="authorName"></div>
+                                <div class="author-desc" id="authorDesc"></div>
+                            </div>
+                        </div>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="usageNum"></div>
+                                <div class="stat-label">使用次数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="favoriteNum"></div>
+                                <div class="stat-label">收藏次数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="duration"></div>
+                                <div class="stat-label">时长(秒)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <h3>视频预览</h3>
+                    <video id="videoPreview">
+                        <source id="videoSource" src="" type="video/mp4">
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+
+                <div class="copy-section">
+                    <button class="copy-url-btn" onclick="handleAction(() => copyVideoUrl())">复制视频地址</button>
+                    <button class="copy-url-btn" onclick="handleDownload(() => downloadVideo())">下载原画视频</button>
+                </div>
+
+                <div class="download-section">
+                    <h3>多清晰度下载</h3>
+                    <div class="download-list" id="downloadList"></div>
+                </div>
+
+                <div class="extra-info" id="extraInfo" style="display:none;">
+                    <h4>详细信息</h4>
+                    <p><strong>视频ID:</strong> <span id="videoId"></span></p>
+                    <p><strong>创建时间:</strong> <span id="createTime"></span></p>
+                    <p><strong>分辨率:</strong> <span id="resolution"></span></p>
+                    <p><strong>格式:</strong> <span id="format"></span></p>
+                    <p><strong>文件大小:</strong> <span id="fileSize"></span></p>
+                    <p><strong>帧率:</strong> <span id="fps"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentVideoUrl = '';
+
+        function formatNumber(num) {
+            if (num >= 10000) {
+                return (num / 10000).toFixed(1) + '万';
+            }
+            return num.toString();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes >= 1024 * 1024) {
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+            return (bytes / 1024).toFixed(2) + ' KB';
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString('zh-CN');
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('parseBtn').disabled = false;
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        async function parseVideo() {
+            const videoUrl = document.getElementById('videoUrl').value.trim();
+            
+            if (!videoUrl) {
+                showError('请输入视频链接');
+                return;
+            }
+
+            if (!videoUrl.includes('jimeng')) {
+                showError('请输入正确的即梦AI视频链接');
+                return;
+            }
+
+            hideError();
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('parseBtn').disabled = true;
+
+            try {
+                const apiUrl = `https://api.bugpk.com/api/jimengai?url=${encodeURIComponent(videoUrl)}`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    displayResult(data.data);
+                } else {
+                    showError(data.msg || '解析失败，请检查链接是否正确');
+                }
+            } catch (error) {
+                console.error('解析错误:', error);
+                showError('解析失败: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('parseBtn').disabled = false;
+            }
+        }
+
+        function displayResult(data) {
+            document.getElementById('title').textContent = data.title || '无标题';
+            document.getElementById('desc').textContent = data.desc || '';
+            document.getElementById('cover').src = data.cover || '';
+            document.getElementById('authorAvatar').src = data.author.avatar || '';
+            document.getElementById('authorName').textContent = data.author.name || '未知作者';
+            document.getElementById('authorDesc').textContent = data.author.description || '';
+            document.getElementById('usageNum').textContent = formatNumber(data.extra?.statistics?.usage_num || 0);
+            document.getElementById('favoriteNum').textContent = formatNumber(data.extra?.statistics?.favorite_num || 0);
+            document.getElementById('duration').textContent = data.duration || 0;
+
+            const videoPreview = document.getElementById('videoPreview');
+            const videoSource = document.getElementById('videoSource');
+            currentVideoUrl = data.url;
+            videoSource.src = data.url;
+            videoPreview.load();
+
+            const downloadList = document.getElementById('downloadList');
+            downloadList.innerHTML = '';
+
+            if (data.video_backup && data.video_backup.length > 0) {
+                data.video_backup.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'download-item';
+                    div.innerHTML = `
+                        <span class="quality-badge">${item.definition || item.quality}</span>
+                        <span style="color:#666;font-size:13px;">${item.width}x${item.height}</span>
+                        <div class="button-group">
+                            <button class="download-item-btn play-btn" onclick="switchVideo('${item.url}', ${index})">播放</button>
+                            <button class="download-item-btn" onclick="handleDownload(() => downloadSingleVideo('${item.url}', ${index}))">下载</button>
+                        </div>
+                    `;
+                    downloadList.appendChild(div);
+                });
+            } else if (data.url) {
+                const div = document.createElement('div');
+                div.className = 'download-item';
+                div.innerHTML = `
+                    <span class="quality-badge">原画</span>
+                    <span style="color:#666;font-size:13px;">${data.quality || 'origin'}</span>
+                    <div class="button-group">
+                        <button class="download-item-btn play-btn" onclick="switchVideo('${data.url}', 0)">播放</button>
+                        <button class="download-item-btn" onclick="handleDownload(() => downloadSingleVideo('${data.url}', 0))">下载</button>
+                    </div>
+                `;
+                downloadList.appendChild(div);
+            }
+
+            if (data.extra) {
+                document.getElementById('extraInfo').style.display = 'block';
+                document.getElementById('videoId').textContent = data.extra.item_id || '';
+                document.getElementById('createTime').textContent = formatTime(data.extra.create_time);
+                document.getElementById('resolution').textContent = `${data.extra.video?.width || 0}x${data.extra.video?.height || 0}`;
+                document.getElementById('format').textContent = data.extra.video?.format || '';
+                document.getElementById('fileSize').textContent = formatFileSize(data.extra.video?.size || 0);
+                document.getElementById('fps').textContent = `${data.extra.video?.fps || 0} fps`;
+            }
+
+            document.getElementById('result').classList.add('active');
+        }
+
+        function copyVideoUrl() {
+            if (currentVideoUrl) {
+                navigator.clipboard.writeText(currentVideoUrl).then(() => {
+                    alert('视频地址已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制');
+                });
+            }
+        }
+
+        function downloadVideo() {
+            if (currentVideoUrl) {
+                const a = document.createElement('a');
+                a.href = currentVideoUrl;
+                a.download = 'video.mp4';
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+
+        function downloadSingleVideo(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'jimeng_video_' + (index + 1) + '.mp4';
+            a.click();
+        }
+
+        function switchVideo(videoUrl, index) {
+            currentVideoUrl = videoUrl;
+            const videoSource = document.getElementById('videoSource');
+            const videoPreview = document.getElementById('videoPreview');
+            videoSource.src = videoUrl;
+            videoPreview.load();
+            videoPreview.play();
+            
+            const allItems = document.querySelectorAll('.download-item');
+            allItems.forEach((item, i) => {
+                if (i === index) {
+                    item.style.backgroundColor = '#e3f2fd';
+                    item.style.borderLeft = '3px solid #2196F3';
+                } else {
+                    item.style.backgroundColor = '#f5f5f5';
+                    item.style.borderLeft = 'none';
+                }
+            });
+        }
+
+        document.getElementById('videoUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                parseVideo();
+            }
+        });
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

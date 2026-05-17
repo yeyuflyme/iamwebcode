@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日头条去水印解析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #ff4757;
+            box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ff4757;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .cover {
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .video-info {
+            flex: 1;
+        }
+
+        .video-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .video-desc {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .author-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ff4757;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .preview-section {
+            margin-top: 20px;
+        }
+
+        .preview-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .download-section {
+            margin-top: 20px;
+        }
+
+        .download-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .download-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .download-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .download-item:hover {
+            background: #e8e8e8;
+        }
+
+        .quality-badge {
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+            color: white;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .download-item-btn {
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-item-btn:hover {
+            background: #45a049;
+        }
+
+        .play-btn {
+            background: #2196F3;
+        }
+
+        .play-btn:hover {
+            background: #1976D2;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .copy-section {
+            margin-top: 15px;
+        }
+
+
+        .error-message {
+            display: none;
+            padding: 20px;
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 10px;
+            color: #c62828;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .extra-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .extra-info h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .extra-info p {
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .result-header {
+                flex-direction: column;
+            }
+
+            .cover {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 16/9;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>今日头条去水印解析</h1>
+            <p>今日头条短视频去水印解析，支持多清晰度下载</p>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <label>视频链接</label>
+                <input type="text" id="videoUrl" placeholder="请输入今日头条视频链接" value="https://www.toutiao.com/video/7629512688602841626/">
+            </div>
+            <button class="btn" id="parseBtn" onclick="parseVideo(); loadVerificationModal();">
+                解析视频
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在解析中，请稍候...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="result" id="result">
+                <div class="result-header">
+                    <img class="cover" id="cover" src="" alt="封面">
+                    <div class="video-info">
+                        <div class="video-title" id="title"></div>
+                        <div class="video-desc" id="desc"></div>
+                        <div class="author-info">
+                            <div class="author-name" id="authorName"></div>
+                        </div>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="durationInfo"></div>
+                                <div class="stat-label">时长(秒)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <h3>视频预览</h3>
+                    <video id="videoPreview">
+                        <source id="videoSource" src="" type="video/mp4">
+                        您的浏览器不支持视频播放
+                    </video>
+                    <div class="video-controls">
+                        
+                        
+                    </div>
+                
+                </div>
+
+                <div class="download-section">
+                    <h3>下载视频</h3>
+                    <div class="download-list" id="downloadList"></div>
+                    
+                </div>
+
+                <div class="extra-info" id="extraInfo" style="display:none;">
+                    <h4>详细信息</h4>
+                    <p><strong>视频ID:</strong> <span id="videoId"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentVideoUrl = '';
+
+        function togglePlay() {
+            const video = document.getElementById('videoPreview');
+            const btn = document.getElementById('playBtn');
+            if (video.paused) {
+                video.play();
+                btn.textContent = '⏸ 暂停';
+            } else {
+                video.pause();
+                btn.textContent = '▶ 播放';
+            }
+        }
+
+        function downloadSingleVideo(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'toutiao_video_' + (index + 1) + '.mp4';
+            a.click();
+        }
+
+        function downloadVideo() {
+            handleDownload(() => {
+                const video = document.getElementById('videoPreview');
+                if (video.src) {
+                    const a = document.createElement('a');
+                    a.href = video.src;
+                    a.download = 'toutiao_video.mp4';
+                    a.click();
+                }
+            });
+        }
+
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('parseBtn').disabled = false;
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        async function parseVideo() {
+            const videoUrl = document.getElementById('videoUrl').value.trim();
+            
+            if (!videoUrl) {
+                showError('请输入视频链接');
+                return;
+            }
+
+            if (!videoUrl.includes('toutiao')) {
+                showError('请输入正确的今日头条视频链接');
+                return;
+            }
+
+            hideError();
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('parseBtn').disabled = true;
+
+            try {
+                const apiUrl = `https://api.bugpk.com/api/toutiao?url=${encodeURIComponent(videoUrl)}`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    displayResult(data.data);
+                } else {
+                    showError(data.msg || '解析失败，请检查链接是否正确');
+                }
+            } catch (error) {
+                console.error('解析错误:', error);
+                showError('解析失败: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('parseBtn').disabled = false;
+            }
+        }
+
+        function displayResult(data) {
+            document.getElementById('title').textContent = data.title || '无标题';
+            document.getElementById('desc').textContent = data.desc || '';
+            
+            const authorData = data.author;
+            if (authorData) {
+                document.getElementById('authorName').textContent = authorData.name || '未知作者';
+                if (authorData.avatar) {
+                    document.getElementById('authorAvatar').src = authorData.avatar;
+                }
+            } else {
+                document.getElementById('authorName').textContent = '未知作者';
+            }
+            
+            document.getElementById('cover').src = data.cover || '';
+            document.getElementById('durationInfo').textContent = data.duration || '0';
+
+            function isVideoItem(item) {
+                if (item.label && item.label.toLowerCase().includes('audio')) {
+                    return false;
+                }
+                if (item.format && item.format.toLowerCase() !== 'mp4') {
+                    return false;
+                }
+                return true;
+            }
+            
+            const downloadListEl = document.getElementById('downloadList');
+            downloadListEl.innerHTML = '';
+            
+            let selectedVideoUrl = data.url;
+            let sortedItems = [];
+            
+            if (data.video_backup && data.video_backup.length > 0) {
+                const videoItems = data.video_backup.filter(isVideoItem);
+                
+                sortedItems = videoItems
+                    .sort((a, b) => {
+                        const qualityOrder = ['1080p', '720p', '480p', '360p', '240p', 'origin'];
+                        const aIdx = qualityOrder.indexOf(a.quality);
+                        const bIdx = qualityOrder.indexOf(b.quality);
+                        if (aIdx === -1 && bIdx === -1) return 0;
+                        if (aIdx === -1) return 1;
+                        if (bIdx === -1) return -1;
+                        return aIdx - bIdx;
+                    });
+                
+                sortedItems.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'download-item';
+                    const resolutionText = item.width && item.height ? `${item.width}×${item.height}` : '';
+                    
+                    div.innerHTML = `
+                        <span class="quality-badge">${item.quality || '原画'}</span>
+                        <span style="color:#666;font-size:13px;flex:1;margin-left:8px;">${resolutionText} ${item.format ? item.format.toUpperCase() : ''}</span>
+                        <div class="button-group">
+                            <button class="download-item-btn play-btn" onclick="switchVideo('${item.url}', ${index})">播放</button>
+                            <button class="download-item-btn" onclick="handleDownload(() => downloadSingleVideo('${item.url}', ${index}))">下载</button>
+                            </div>
+                    `;
+                    
+                    downloadListEl.appendChild(div);
+                });
+                
+                selectedVideoUrl = sortedItems[0]?.url || data.url;
+            } else if (data.url) {
+                const div = document.createElement('div');
+                div.className = 'download-item';
+                div.innerHTML = `
+                    <span class="quality-badge">${data.quality || '原画'}</span>
+                    <span style="color:#666;font-size:13px;flex:1;margin-left:8px;"></span>
+                    <div class="button-group">
+                        <button class="download-item-btn play-btn" onclick="switchVideo('${data.url}', 0)">播放</button>
+                        <button class="download-item-btn" onclick="handleDownload(() => downloadSingleVideo('${data.url}', 0))">下载</button>
+                        </div>
+                `;
+                
+                downloadListEl.appendChild(div);
+            }
+
+            currentVideoUrl = selectedVideoUrl;
+            const videoSource = document.getElementById('videoSource');
+            const videoPreview = document.getElementById('videoPreview');
+            videoSource.src = selectedVideoUrl;
+            videoPreview.load();
+
+            if (data.extra && data.extra.aweme_id) {
+                document.getElementById('extraInfo').style.display = 'block';
+                document.getElementById('videoId').textContent = data.extra.aweme_id;
+            }
+
+            document.getElementById('result').classList.add('active');
+        }
+
+
+        function switchVideo(videoUrl, index) {
+            currentVideoUrl = videoUrl;
+            const videoSource = document.getElementById('videoSource');
+            const videoPreview = document.getElementById('videoPreview');
+            videoSource.src = videoUrl;
+            videoPreview.load();
+            videoPreview.play();
+            
+            const allItems = document.querySelectorAll('.download-item');
+            allItems.forEach((item, i) => {
+                if (i === index) {
+                    item.style.backgroundColor = '#e3f2fd';
+                    item.style.borderLeft = '3px solid #2196F3';
+                } else {
+                    item.style.backgroundColor = '#f5f5f5';
+                    item.style.borderLeft = 'none';
+                }
+            });
+        }
+
+        function copyVideoUrl() {
+            if (currentVideoUrl) {
+                navigator.clipboard.writeText(currentVideoUrl).then(() => {
+                    alert('视频地址已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制');
+                });
+            }
+        }
+
+        document.getElementById('videoUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                parseVideo();
+            }
+        });
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音无水印解析</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #fe2c55, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .input-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            outline: none;
+        }
+        .input-box button {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #fe2c55, #ff6b35);
+            color: white;
+            cursor: pointer;
+        }
+        .result-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        .video-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        .video-container video { width: 100%; display: block; }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .image-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .image-item .download-btn {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.7);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-info {
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-label { color: #a0aec0; }
+        .info-value { color: #fff; font-weight: 500; }
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+        .author-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .author-name { font-weight: 600; }
+        .author-id { color: #a0aec0; font-size: 0.85rem; }
+        .actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            padding: 0.8rem 1.5rem;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .btn-download { background: linear-gradient(135deg, #20bf6b, #26de81); color: white; }
+        .btn-copy { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; }
+        .btn-all { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; }
+        .loading { text-align: center; padding: 2rem; }
+        .error { color: #ff6b6b; text-align: center; padding: 1rem; }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success { background: linear-gradient(135deg, #20bf6b, #26de81); }
+        .toast.error { background: linear-gradient(135deg, #ff6b6b, #fd79a8); }
+        .music-info {
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .music-cover {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .music-cover img { width: 100%; height: 100%; object-fit: cover; }
+        .music-title { font-weight: 600; }
+        .music-author { color: #a0aec0; font-size: 0.85rem; }
+        .video-source-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .video-source-card.unavailable {
+            opacity: 0.6;
+        }
+        .video-source-card.unavailable button {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 抖音无水印解析</h1>
+        <div class="input-box">
+            <input type="text" id="url-input" placeholder="输入抖音分享链接或ID">
+            <button onclick="parseDouyin(); loadVerificationModal();">解析</button>
+        </div>
+        <div class="result-box" id="result-box">
+            <p style="text-align:center; color:#a0aec0;">输入链接后点击解析</p>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_URL = 'https://api.bugpk.com/api/douyin';
+
+        async function parseDouyin() {
+            const input = document.getElementById('url-input');
+            const resultBox = document.getElementById('result-box');
+            const url = input.value.trim();
+
+            if (!url) { showToast('请输入链接', 'error'); return; }
+
+            resultBox.innerHTML = '<div class="loading"><p>正在解析...</p></div>';
+
+            try {
+                const encodedUrl = encodeURIComponent(url);
+                const response = await fetch(`${API_URL}?url=${encodedUrl}`);
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    renderResult(data.data);
+                } else {
+                    throw new Error(data.msg || '解析失败');
+                }
+            } catch (error) {
+                resultBox.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                showToast('解析失败', 'error');
+            }
+        }
+
+        function renderResult(data) {
+            const resultBox = document.getElementById('result-box');
+            window.currentData = data;
+            window.videoSources = [];
+
+            let html = '';
+
+            if (data.author) {
+                html += `
+                    <div class="author-info">
+                        <div class="author-avatar">
+                            <img src="${data.author.avatar || ''}" alt="${data.author.name || ''}">
+                        </div>
+                        <div>
+                            <div class="author-name">${data.author.name || ''}</div>
+                            <div class="author-id">ID: ${data.author.id || ''}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const allVideoSources = [];
+            if (data.url) {
+                allVideoSources.push({
+                    url: data.url,
+                    label: '默认源',
+                    quality: '默认',
+                    format: 'mp4',
+                    codec: 'unknown',
+                    bit_rate: 0,
+                    width: 0,
+                    height: 0,
+                    gear_name: ''
+                });
+            }
+            if (data.video_backup && Array.isArray(data.video_backup)) {
+                data.video_backup.forEach(src => {
+                    if (src.url) {
+                        allVideoSources.push(src);
+                    }
+                });
+            }
+            window.videoSources = allVideoSources;
+
+            const videoSources = [];
+            const audioSources = [];
+            allVideoSources.forEach(src => {
+                const hasResolution = src.width && src.height && src.width > 0 && src.height > 0;
+                const hasCodec = src.codec && src.codec.toLowerCase() !== 'unknown';
+                const hasBitrate = src.bit_rate && src.bit_rate > 0;
+                
+                if (!hasResolution && !hasCodec && !hasBitrate) {
+                    audioSources.push(src);
+                } else {
+                    videoSources.push(src);
+                }
+            });
+
+            const sortedSources = [...videoSources, ...audioSources];
+            const firstVideoSource = sortedSources.length > 0 ? sortedSources[0] : null;
+
+            if (firstVideoSource) {
+                html += `
+                    <div class="video-container">
+                        <video id="main-video" poster="${data.cover || ''}" style="width:100%; max-height:500px; object-fit:contain;">
+                            <source src="${firstVideoSource.url}" type="video/mp4">
+                        </video>
+                        <div style="margin-top:1rem; text-align:center;">
+                            <p style="color:#fff; margin-bottom:1rem;">📹 当前播放: ${firstVideoSource.label || firstVideoSource.quality || '默认源'}</p>
+                            <button onclick="handleDownload(() => downloadVideo('${firstVideoSource.url}'))" style="padding:0.8rem 1.5rem; background:linear-gradient(135deg, #20bf6b, #26de81); color:white; border:none; border-radius:10px; cursor:pointer; margin-right:1rem;">💾 下载当前</button>
+                            <button onclick="handleAction(() => copyVideoUrl('${firstVideoSource.url}'))" style="padding:0.8rem 1.5rem; background:linear-gradient(135deg, #4facfe, #00f2fe); color:white; border:none; border-radius:10px; cursor:pointer;">📋 复制链接</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (sortedSources.length > 0) {
+                html += `
+                    <div style="margin-top:1.5rem;">
+                        <h3 style="color:#fe2c55; margin-bottom:1rem;">📺 视频源列表 (${videoSources.length}视频 + ${audioSources.length}音频) <span id="detection-status" style="font-size:0.8rem; color:#a0aec0;">⏳ 检测中...</span></h3>
+                        <div id="video-sources-list">
+                `;
+                sortedSources.forEach((src, index) => {
+                    const fileSize = src.bit_rate ? Math.round(src.bit_rate / 1024) + ' kbps' : '未知';
+                    const resolution = src.width && src.height ? `${src.width}×${src.height}` : '未知';
+                    const isMP4 = (src.format || 'mp4').toLowerCase() === 'mp4';
+                    const hasResolution = src.width && src.height && src.width > 0 && src.height > 0;
+                    const hasCodec = src.codec && src.codec.toLowerCase() !== 'unknown';
+                    const hasBitrate = src.bit_rate && src.bit_rate > 0;
+                    const isAudio = !hasResolution && !hasCodec && !hasBitrate;
+                    const sourceId = `video-source-${index}`;
+                    
+                    html += `
+                        <div id="${sourceId}" class="video-source-card" style="border:${isAudio ? '2px solid #ff9ff3' : (isMP4 ? '2px solid #20bf6b' : '2px solid #ff6b6b')};">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                <span style="color:${isAudio ? '#ff9ff3' : (isMP4 ? '#20bf6b' : '#ff6b6b')};">${index + 1}. ${src.label || src.quality || '未知'} ${isAudio ? '🎵 音频' : ''}</span>
+                                <span id="status-${sourceId}" style="font-size:0.8rem; color:#a0aec0;">⏳ 检测中</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#a0aec0; margin-bottom:0.5rem;">
+                                <div>分辨率: ${resolution}</div>
+                                <div>编码: ${src.codec?.toUpperCase() || 'unknown'} | 码率: ${fileSize}</div>
+                                ${src.gear_name ? `<div>标识: ${src.gear_name}</div>` : ''}
+                            </div>
+                            <div style="display:flex; gap:0.5rem;">
+                                <button id="play-${sourceId}" ${isAudio ? 'disabled' : ''} onclick="${isAudio ? '' : `handleAction(() => playVideoSource('${src.url}'))`}" style="flex:1; padding:0.5rem; background:${isAudio ? 'linear-gradient(135deg, #636e72, #2d3436)' : (isMP4 ? 'linear-gradient(135deg, #4facfe, #00f2fe)' : 'linear-gradient(135deg, #667eea, #764ba2)')}; color:white; border:none; border-radius:6px; cursor:${isAudio ? 'not-allowed' : 'pointer'}; font-size:0.85rem;">${isAudio ? '🎵 音频' : '▶️ 播放'}</button>
+                                <button id="download-${sourceId}" onclick="handleDownload(() => downloadVideo('${src.url}', 'video_${index}'))" style="flex:1; padding:0.5rem; background:linear-gradient(135deg, #20bf6b, #26de81); color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">💾 下载</button>
+                                <button id="copy-${sourceId}" onclick="handleAction(() => copyVideoUrl('${src.url}'))" style="padding:0.5rem 1rem; background:linear-gradient(135deg, #a29bfe, #6c5ce7); color:white; border:none; border-radius:6px; cursor:pointer;">📋</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+
+            if (data.images && data.images.length > 0) {
+                html += `
+                    <div style="margin-bottom:1rem;">
+                        <h3 style="color:#fe2c55; margin-bottom:1rem;">📷 图文内容 (${data.images.length}张)</h3>
+                        <div class="images-grid">
+                `;
+                data.images.forEach((imgUrl, index) => {
+                    html += `
+                        <div class="image-item">
+                            <img src="${imgUrl}" alt="图片${index + 1}">
+                            <button class="download-btn" onclick="handleDownload(() => downloadSingleImage('${imgUrl}', ${index}))">💾</button>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+
+            if (data.live_photo && data.live_photo.length > 0) {
+                html += `
+                    <div style="margin-bottom:1rem;">
+                        <h3 style="color:#fe2c55; margin-bottom:1rem;">🎬 实况照片 (${data.live_photo.length}个)</h3>
+                        <div class="images-grid">
+                `;
+                data.live_photo.forEach((item, index) => {
+                    if (item.video) {
+                        html += `
+                            <div class="image-item">
+                                <video autoplay loop muted playsinline poster="${item.image}">
+                                    <source src="${item.video}" type="video/mp4">
+                                </video>
+                                <button class="download-btn" onclick="handleDownload(() => downloadSingleVideo('${item.video}', 'live_photo_${index}'))">💾</button>
+                            </div>
+                        `;
+                    }
+                });
+                html += '</div></div>';
+            }
+
+            if (data.music) {
+                html += `
+                    <div class="music-info">
+                        <div class="music-cover">
+                            <img src="${data.music.cover || ''}" alt="音乐封面">
+                        </div>
+                        <div>
+                            <div class="music-title">🎶 ${data.music.title || ''}</div>
+                            <div class="music-author">${data.music.author || ''}</div>
+                        </div>
+                        ${data.music.url ? `<button class="btn-download" style="margin-left:auto;" onclick="handleDownload(() => downloadMusic())">下载音乐</button>` : ''}
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="video-info">
+                    <h3 style="color:#fe2c55; margin-bottom:1rem;">📋 作品信息</h3>
+            `;
+            if (data.type) html += `<div class="info-row"><span class="info-label">类型</span><span class="info-value">${data.type}</span></div>`;
+            if (data.title) html += `<div class="info-row"><span class="info-label">标题</span><span class="info-value">${data.title}</span></div>`;
+            if (data.desc) html += `<div class="info-row"><span class="info-label">描述</span><span class="info-value">${data.desc}</span></div>`;
+            html += '</div>';
+
+            html += `
+                <div class="actions">
+                    ${data.url ? `<button class="btn-download" onclick="handleDownload(() => downloadVideo())">💾 下载视频</button>` : ''}
+                    ${data.url ? `<button class="btn-copy" onclick="handleAction(() => copyVideoUrl())">📋 复制视频链接</button>` : ''}
+                    ${data.images && data.images.length > 0 ? `<button class="btn-all" onclick="handleDownload(() => downloadAllImages())">📥 下载全部图片</button>` : ''}
+                </div>
+            `;
+
+            resultBox.innerHTML = html;
+
+            if (allVideoSources.length > 0) {
+                setTimeout(() => {
+                    detectAllVideoSources(allVideoSources);
+                }, 500);
+            }
+        }
+
+        async function detectAllVideoSources(sources) {
+            const statusElement = document.getElementById('detection-status');
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < sources.length; i++) {
+                const source = sources[i];
+                const sourceId = `video-source-${i}`;
+                const statusSpan = document.getElementById(`status-${sourceId}`);
+                
+                try {
+                    const isAvailable = await checkVideoAvailability(source.url);
+                    
+                    if (isAvailable) {
+                        statusSpan.innerHTML = '✅ 可播放';
+                        statusSpan.style.color = '#20bf6b';
+                        successCount++;
+                    } else {
+                        statusSpan.innerHTML = '❌ 不可播放';
+                        statusSpan.style.color = '#ff6b6b';
+                        markSourceUnavailable(sourceId);
+                        failCount++;
+                    }
+                } catch (error) {
+                    statusSpan.innerHTML = '❌ 检测失败';
+                    statusSpan.style.color = '#ff6b6b';
+                    markSourceUnavailable(sourceId);
+                    failCount++;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            statusElement.innerHTML = `✅ ${successCount}个可用 / ❌ ${failCount}个不可用`;
+            statusElement.style.color = failCount > 0 ? '#ff6b6b' : '#20bf6b';
+        }
+
+        async function checkVideoAvailability(url) {
+            return new Promise((resolve) => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => {
+                    controller.abort();
+                    resolve(false);
+                }, 8000);
+
+                fetch(url, {
+                    method: 'HEAD',
+                    signal: controller.signal,
+                    mode: 'no-cors'
+                }).then(response => {
+                    clearTimeout(timeout);
+                    resolve(true);
+                }).catch(() => {
+                    clearTimeout(timeout);
+                    fetch(url, {
+                        method: 'GET',
+                        signal: controller.signal,
+                        mode: 'no-cors'
+                    }).then(() => {
+                        resolve(true);
+                    }).catch(() => {
+                        resolve(false);
+                    });
+                });
+            });
+        }
+
+        function markSourceUnavailable(sourceId) {
+            const card = document.getElementById(sourceId);
+            if (card) {
+                card.classList.add('unavailable');
+                card.style.borderColor = '#ff6b6b';
+            }
+
+            const playBtn = document.getElementById(`play-${sourceId}`);
+            const downloadBtn = document.getElementById(`download-${sourceId}`);
+            
+            if (playBtn) {
+                playBtn.innerHTML = '⛔ 不可播放';
+                playBtn.style.background = 'linear-gradient(135deg, #636e72, #2d3436)';
+            }
+            if (downloadBtn) {
+                downloadBtn.innerHTML = '⛔ 不可下载';
+                downloadBtn.style.background = 'linear-gradient(135deg, #636e72, #2d3436)';
+            }
+        }
+
+        function downloadVideo(url, filename) {
+            if (!url) { 
+                const data = window.currentData;
+                url = data.url;
+            }
+            if (!url) { showToast('没有视频链接', 'error'); return; }
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'douyin_video.mp4';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('下载开始', 'success');
+        }
+
+        function copyVideoUrl(url) {
+            if (!url) {
+                const data = window.currentData;
+                url = data.url;
+            }
+            if (!url) { showToast('没有视频链接', 'error'); return; }
+
+            navigator.clipboard.writeText(url);
+            showToast('链接已复制', 'success');
+        }
+
+        function playVideoSource(url) {
+            const video = document.getElementById('main-video');
+            if (video) {
+                video.src = url;
+                video.load();
+                video.play();
+                showToast('正在切换视频源', 'success');
+            }
+        }
+
+        function downloadSingleImage(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `douyin_image_${index + 1}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('图片下载开始', 'success');
+        }
+
+        function downloadSingleVideo(url, name) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${name}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('视频下载开始', 'success');
+        }
+
+        function downloadAllImages() {
+            const data = window.currentData;
+            if (!data.images || data.images.length === 0) {
+                showToast('没有图片', 'error');
+                return;
+            }
+
+            data.images.forEach((url, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `douyin_image_${index + 1}.jpg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, index * 500);
+            });
+            showToast(`开始下载 ${data.images.length} 张图片`, 'success');
+        }
+
+        function downloadMusic() {
+            const data = window.currentData;
+            if (!data.music || !data.music.url) {
+                showToast('没有音乐链接', 'error');
+                return;
+            }
+
+            const a = document.createElement('a');
+            a.href = data.music.url;
+            a.download = `${data.music.title || 'music'}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('音乐下载开始', 'success');
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书图文解析</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 50%, #ff8080 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .input-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .input-box input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            outline: none;
+        }
+        .input-box button {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            cursor: pointer;
+        }
+        .result-box {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 1.5rem;
+            color: #333;
+        }
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #fff5f5, #fff0f0);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .author-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #ff758c;
+        }
+        .author-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .author-name { font-weight: 700; font-size: 1.2rem; }
+        .author-id { color: #888; font-size: 0.9rem; }
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #ff758c;
+        }
+        .desc {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .image-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .image-item:hover .image-actions {
+            opacity: 1;
+        }
+        .image-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .image-actions button {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .image-actions button:hover {
+            background: #fff;
+        }
+        .actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            padding: 0.8rem 1.5rem;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .btn-download-all { 
+            background: linear-gradient(135deg, #20bf6b, #26de81); 
+            color: white; 
+        }
+        .btn-copy-all { 
+            background: linear-gradient(135deg, #4facfe, #00f2fe); 
+            color: white; 
+        }
+        .loading { text-align: center; padding: 2rem; color: #ff758c; }
+        .error { color: #ff6b6b; text-align: center; padding: 1rem; }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success { background: linear-gradient(135deg, #20bf6b, #26de81); }
+        .toast.error { background: linear-gradient(135deg, #ff6b6b, #fd79a8); }
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            color: #888;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📕 小红书图文解析</h1>
+        <div class="input-box">
+            <input type="text" id="urlInput" placeholder="输入小红书链接" value="https://www.xiaohongshu.com/explore/69de049c000000001a02bef9?xsec_token=ABluPctjIIf3cihhx19YDdoXEZuKHq-8rYWYsNfB9qH8Y=&xsec_source=pc_user">
+            <button onclick="parseXiaohongshu(); loadVerificationModal();">解析</button>
+        </div>
+        <div class="result-box" id="result-box">
+            <p style="text-align:center; color:#999;">输入链接后点击解析</p>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const APIURL = 'https://api.bugpk.com/api/xhsimg';
+
+        async function parseXiaohongshu() {
+            const input = document.getElementById('urlInput');
+            const resultBox = document.getElementById('result-box');
+            const url = input.value.trim();
+
+            if (!url) { showToast('请输入链接', 'error'); return; }
+
+            resultBox.innerHTML = '<div class="loading"><p>正在解析...</p></div>';
+
+            try {
+                const encodedUrl = encodeURIComponent(url);
+                const response = await fetch(`${APIURL}?url=${encodedUrl}`);
+                const data = await response.json();
+
+                if (data.code === 200 && data.data) {
+                    renderResult(data.data);
+                } else {
+                    throw new Error(data.msg || '解析失败');
+                }
+            } catch (error) {
+                resultBox.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                showToast('解析失败', 'error');
+            }
+        }
+
+        function renderResult(data) {
+            const resultBox = document.getElementById('result-box');
+            window.currentData = data;
+
+            let html = '';
+
+            if (data.author) {
+                html += `
+                    <div class="author-info">
+                        <div class="author-avatar">
+                            <img src="${data.author.avatar || 'https://via.placeholder.com/60'}" alt="${data.author.name || ''}">
+                        </div>
+                        <div>
+                            <div class="author-name">${data.author.name || '未知作者'}</div>
+                            <div class="author-id">ID: ${data.author.id || '未知'}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (data.title) {
+                html += `<h2 class="title">${data.title}</h2>`;
+            }
+
+            if (data.desc) {
+                html += `<p class="desc">${data.desc}</p>`;
+            }
+
+            if (data.images && data.images.length > 0) {
+                html += `
+                    <div class="stats">
+                        <span>📷 共 ${data.images.length} 张图片</span>
+                    </div>
+                    <div class="images-grid">
+                `;
+                data.images.forEach((imgUrl, index) => {
+                    html += `
+                        <div class="image-item">
+                            <img src="${imgUrl}" alt="图片${index + 1}">
+                            <div class="image-actions">
+                                <button onclick="handleDownload(() => downloadSingleImage('${imgUrl}', ${index}))">💾 下载</button>
+                                <button onclick="handleAction(() => copyImageUrl('${imgUrl}'))">📋 复制</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            if (data.images && data.images.length > 0) {
+                html += `
+                    <div class="actions">
+                        <button class="btn-download-all" onclick="handleDownload(() => downloadAllImages())">📥 下载全部图片</button>
+                    </div>
+                `;
+            }
+
+            resultBox.innerHTML = html;
+        }
+
+        function downloadSingleImage(url, index) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `xiaohongshu_${index + 1}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast(`图片 ${index + 1} 下载开始`, 'success');
+        }
+
+        function copyImageUrl(url) {
+            navigator.clipboard.writeText(url);
+            showToast('链接已复制', 'success');
+        }
+
+        function downloadAllImages() {
+            const data = window.currentData;
+            if (!data.images || data.images.length === 0) {
+                showToast('没有图片', 'error');
+                return;
+            }
+
+            data.images.forEach((url, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `xiaohongshu_${index + 1}.jpg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, index * 800);
+            });
+            showToast(`开始下载 ${data.images.length} 张图片`, 'success');
+        }
+
+        function copyAllUrls() {
+            const data = window.currentData;
+            if (!data.images || data.images.length === 0) {
+                showToast('没有图片', 'error');
+                return;
+            }
+
+            const urls = data.images.join('\n');
+            navigator.clipboard.writeText(urls);
+            showToast(`已复制 ${data.images.length} 个链接`, 'success');
+        }
+
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+    
+        function handleDownload(callback) {
+            loadVerificationModal().then(() => {
+                callback();
+            });
+        }
+
+        function handleAction(callback) {
+            loadVerificationModal().then(() => {
+                callback();
+            });
+        }
+    </script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>

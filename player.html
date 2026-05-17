@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3U8播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .header .close-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .header .close-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .player-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: #000;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            max-width: 1200px;
+            height: auto;
+            max-height: calc(100vh - 120px);
+            border-radius: 10px;
+        }
+
+        .controls {
+            background: rgba(0,0,0,0.8);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .control-btn {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn.danger {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+        }
+
+        .error-message {
+            color: #ff4444;
+            font-size: 16px;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading {
+            color: #fff;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-bar {
+            background: #1a1a1a;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        .info-bar code {
+            color: #4CAF50;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+            }
+
+            .control-btn {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>M3U8播放器</h1>
+        <button class="close-btn" onclick="window.close()">关闭窗口</button>
+    </div>
+
+    <div class="info-bar" id="urlInfo" style="display:none;">
+        <code id="currentUrl"></code>
+    </div>
+
+    <div class="player-container" id="playerContainer">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p style="color:#fff;">正在加载视频...</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-btn" onclick="handleAction(() => togglePlay())">播放/暂停</button>
+        <button class="control-btn" onclick="handleAction(() => rewind())">后退10秒</button>
+        <button class="control-btn" onclick="handleAction(() => forward())">前进10秒</button>
+        <button class="control-btn danger" onclick="window.close()">关闭</button>
+    </div>
+
+    <script>
+        let videoPlayer = null;
+        let m3u8Url = '';
+
+        function getUrlParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        function initPlayer() {
+            m3u8Url = getUrlParam('url');
+            
+            if (!m3u8Url) {
+                document.getElementById('playerContainer').innerHTML = `
+                    <div class="error-message">
+                        <p>错误：未提供M3U8地址</p>
+                        <p>请通过URL参数传递M3U8地址，例如：player.html?url=xxx.m3u8</p>
+                    </div>
+                `;
+                return;
+            }
+
+            document.getElementById('currentUrl').textContent = m3u8Url;
+            document.getElementById('urlInfo').style.display = 'block';
+
+            const container = document.getElementById('playerContainer');
+            container.innerHTML = '';
+
+            videoPlayer = document.createElement('video');
+            videoPlayer.id = 'videoPlayer';
+            videoPlayer.controls = true;
+            videoPlayer.autoplay = false;
+            videoPlayer.crossOrigin = 'anonymous';
+
+            const source = document.createElement('source');
+            source.src = m3u8Url;
+            source.type = 'application/x-mpegURL';
+
+            videoPlayer.appendChild(source);
+            container.appendChild(videoPlayer);
+
+            videoPlayer.addEventListener('error', function(e) {
+                console.error('视频加载错误:', e);
+                container.innerHTML = `
+                    <div class="error-message">
+                        <p>视频加载失败</p>
+                        <p>原因：${e.target.error?.message || '未知错误'}</p>
+                        <p style="margin-top: 10px; font-size: 12px; color:#666;">建议：尝试使用VLC、PotPlayer等播放器打开此链接</p>
+                    </div>
+                `;
+            });
+
+            videoPlayer.addEventListener('loadedmetadata', function() {
+                console.log('视频加载成功');
+            });
+
+            videoPlayer.load();
+        }
+
+        function togglePlay() {
+            if (videoPlayer) {
+                if (videoPlayer.paused) {
+                    videoPlayer.play();
+                } else {
+                    videoPlayer.pause();
+                }
+            }
+        }
+
+        function rewind() {
+            if (videoPlayer) {
+                videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+            }
+        }
+
+        function forward() {
+            if (videoPlayer) {
+                videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initPlayer);
+    
+function handleDownload(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+
+function handleAction(callback) {
+    loadVerificationModal().then(() => {
+        callback();
+    });
+}
+</script>
+    <script src="verification-min.js"></script>
+    <div class="disclaimer" style="text-align:center; padding:15px; color:#888; font-size:12px; margin-top:20px;">
+        ⚠️ 本工具仅供娱乐和学习交流使用，请勿用于商业用途。如有侵权请联系删除。
+    </div>
+</body>
+</html>
